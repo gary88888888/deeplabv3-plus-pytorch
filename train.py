@@ -62,18 +62,18 @@ if __name__ == "__main__":
     #   fp16        是否使用混合精度训练
     #               可减少约一半的显存、需要pytorch1.7.1以上
     #---------------------------------------------------------------------#
-    fp16            = False
+    fp16            = True
     #-----------------------------------------------------#
     #   num_classes     训练自己的数据集必须要修改的
     #                   自己需要的分类个数+1，如2+1
     #-----------------------------------------------------#
-    num_classes     = 21
+    num_classes     = 16 #14
     #---------------------------------#
     #   所使用的的主干网络：
     #   mobilenet
     #   xception
     #---------------------------------#
-    backbone        = "mobilenet"
+    backbone        = "xception"
     #----------------------------------------------------------------------------------------------------------------------------#
     #   pretrained      是否使用主干网络的预训练权重，此处使用的是主干的权重，因此是在模型构建的时候进行加载的。
     #                   如果设置了model_path，则主干的权值无需加载，pretrained的值无意义。
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     #   一般来讲，网络从0开始的训练效果会很差，因为权值太过随机，特征提取效果不明显，因此非常、非常、非常不建议大家从0开始训练！
     #   如果一定要从0开始，可以了解imagenet数据集，首先训练分类模型，获得网络的主干部分权值，分类模型的 主干部分 和该模型通用，基于此进行训练。
     #----------------------------------------------------------------------------------------------------------------------------#
-    model_path      = "model_data/deeplab_mobilenetv2.pth"
+    model_path      = "model_data/deeplab_xception.pth"
     #---------------------------------------------------------#
     #   downsample_factor   下采样的倍数8、16 
     #                       8下采样的倍数较小、理论上效果更好。
@@ -153,8 +153,8 @@ if __name__ == "__main__":
     #                       (当Freeze_Train=False时失效)
     #------------------------------------------------------------------#
     Init_Epoch          = 0
-    Freeze_Epoch        = 50
-    Freeze_batch_size   = 8
+    Freeze_Epoch        = 10
+    Freeze_batch_size   = 16
     #------------------------------------------------------------------#
     #   解冻阶段训练参数
     #   此时模型的主干不被冻结了，特征提取网络会发生改变
@@ -162,9 +162,9 @@ if __name__ == "__main__":
     #   UnFreeze_Epoch          模型总共训练的epoch
     #   Unfreeze_batch_size     模型在解冻后的batch_size
     #------------------------------------------------------------------#
-    UnFreeze_Epoch      = 100
-    Unfreeze_batch_size = 4
-    #------------------------------------------------------------------#
+    UnFreeze_Epoch      = 200
+    Unfreeze_batch_size = 10
+        #------------------------------------------------------------------#
     #   Freeze_Train    是否进行冻结训练
     #                   默认先冻结主干训练后解冻训练。
     #------------------------------------------------------------------#
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     #------------------------------------------------------------------#
     #   save_period     多少个epoch保存一次权值
     #------------------------------------------------------------------#
-    save_period         = 5
+    save_period         = 40
     #------------------------------------------------------------------#
     #   save_dir        权值与日志文件保存的文件夹
     #------------------------------------------------------------------#
@@ -213,12 +213,12 @@ if __name__ == "__main__":
     #   （二）此处设置评估参数较为保守，目的是加快评估速度。
     #------------------------------------------------------------------#
     eval_flag           = True
-    eval_period         = 5
+    eval_period         = 10
 
     #------------------------------------------------------------------#
     #   VOCdevkit_path  数据集路径
     #------------------------------------------------------------------#
-    VOCdevkit_path  = 'VOCdevkit'
+    VOCdevkit_path  = 'VOCdevkit_foodseg103_plus_origin'
     #------------------------------------------------------------------#
     #   建议选项：
     #   种类少（几类）时，设置为True
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     #------------------------------------------------------------------#
     #   是否使用focal loss来防止正负样本不平衡
     #------------------------------------------------------------------#
-    focal_loss      = False
+    focal_loss      = True
     #------------------------------------------------------------------#
     #   是否给不同种类赋予不同的损失权值，默认是平衡的。
     #   设置的话，注意设置成numpy形式的，长度和num_classes一样。
@@ -237,7 +237,9 @@ if __name__ == "__main__":
     #   num_classes = 3
     #   cls_weights = np.array([1, 2, 3], np.float32)
     #------------------------------------------------------------------#
-    cls_weights     = np.ones([num_classes], np.float32)
+    cls_weights     = np.ones([num_classes], np.float32) 
+    # cls_weights     = np.array([1,2,3,4,5,6,7,8,9,10,11,12,13,14], np.float32)
+    
     #------------------------------------------------------------------#
     #   num_workers     用于设置是否使用多线程读取数据，1代表关闭多线程
     #                   开启后会加快数据读取速度，但是会占用更多内存
@@ -431,9 +433,13 @@ if __name__ == "__main__":
         #---------------------------------------#
         epoch_step      = num_train // batch_size
         epoch_step_val  = num_val // batch_size
-        
+        print("epoch_step",epoch_step)
+        print("epoch_step_val",epoch_step_val)
+        print("batch_size",batch_size)
+        print("num_train",num_train)
+        print("num_val",num_val)
         if epoch_step == 0 or epoch_step_val == 0:
-            raise ValueError("数据集过小，无法继续进行训练，请扩充数据集。")
+            raise ValueError("数据集过小，无法继续进行训练，请扩充数据集")
 
         train_dataset   = DeeplabDataset(train_lines, input_shape, num_classes, True, VOCdevkit_path)
         val_dataset     = DeeplabDataset(val_lines, input_shape, num_classes, False, VOCdevkit_path)
@@ -494,9 +500,15 @@ if __name__ == "__main__":
                             
                 epoch_step      = num_train // batch_size
                 epoch_step_val  = num_val // batch_size
-
+                print("epoch_step",epoch_step)
+                print("epoch_step_val",epoch_step_val)
+                print("batch_size",batch_size)
+                print("num_train",num_train)
+                print("num_val",num_val)
                 if epoch_step == 0 or epoch_step_val == 0:
+                    
                     raise ValueError("数据集过小，无法继续进行训练，请扩充数据集。")
+                
 
                 if distributed:
                     batch_size = batch_size // ngpus_per_node

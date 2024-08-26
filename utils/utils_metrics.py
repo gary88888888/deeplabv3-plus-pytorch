@@ -52,7 +52,7 @@ def per_class_Precision(hist):
     return np.diag(hist) / np.maximum(hist.sum(0), 1) 
 
 def per_Accuracy(hist):
-    return np.sum(np.diag(hist)) / np.maximum(np.sum(hist), 1) 
+    return np.sum(np.diag(hist)) / np.maximum(np.sum(hist), 1)
 
 def compute_mIoU(gt_dir, pred_dir, png_name_list, num_classes, name_classes=None):  
     print('Num classes', num_classes)  

@@ -6,9 +6,59 @@ import time
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from deeplab import DeeplabV3
+
+def process_image(img,raw_image, class_nums, class_names, colors, max_width=400, output_size=(800, 650)):
+    # 打開圖片
+    img = img
+    
+    # 計算新的尺寸保持原比例
+    aspect_ratio = img.height / img.width
+    new_width = min(max_width, img.width)
+    new_height = int(new_width * aspect_ratio)
+    
+    # 縮小圖片
+    img = img.resize((new_width, new_height), Image.ANTIALIAS)
+    raw_image = raw_image.resize((new_width, new_height), Image.ANTIALIAS)
+    # 創建一個固定大小的全白圖片
+    new_img = Image.new('RGB', output_size, (255, 255, 255))
+    
+    # 計算圖片的位置，使其位於新圖片的左側
+    img_x = 20  # 固定的左邊距
+    img_y = (output_size[1] - new_height*2) // 3  # 垂直居中
+    
+    # 將縮小的圖片粘貼到新圖片上
+    new_img.paste(img, (img_x, img_y))
+    new_img.paste(raw_image, (img_x, img_y*2+new_height))
+    # 繪製色塊和class_name
+    draw = ImageDraw.Draw(new_img)
+    try:
+        font = ImageFont.truetype("arial.ttf", 20)
+    except IOError:
+        font = ImageFont.load_default()
+    
+    # 色塊的寬高
+    block_width = 30
+    block_height = 30
+    text_x = img_x + new_width + 20  # 色塊和文字的起始x位置
+    text_y = 20  # 第一個色塊和文字的起始y位置
+    spacing = 10  # 色塊和文字之間的間距
+    class_show_index = 0
+    for i, class_num in enumerate(class_nums):
+        if class_num > 0:
+
+            color = colors[i % len(colors)]
+            block_y = text_y + (block_height + spacing) * class_show_index  # 每個色塊和文字的y位置
+            class_show_index+=1
+            # 繪製色塊
+            draw.rectangle([(text_x, block_y), (text_x + block_width, block_y + block_height)], fill=color)
+            
+            # 繪製文字
+            draw.text((text_x + block_width + 10, block_y + 5), class_names[i], fill=(0, 0, 0), font=font)
+    
+    return new_img
 
 if __name__ == "__main__":
     #-------------------------------------------------------------------------#
@@ -23,16 +73,17 @@ if __name__ == "__main__":
     #   'dir_predict'       表示遍历文件夹进行检测并保存。默认遍历img文件夹，保存img_out文件夹，详情查看下方注释。
     #   'export_onnx'       表示将模型导出为onnx，需要pytorch1.7.1以上。
     #----------------------------------------------------------------------------------------------------------#
-    mode = "predict"
+    mode = "dir_predict"
     #-------------------------------------------------------------------------#
     #   count               指定了是否进行目标的像素点计数（即面积）与比例计算
     #   name_classes        区分的种类，和json_to_dataset里面的一样，用于打印种类和数量
     #
     #   count、name_classes仅在mode='predict'时有效
     #-------------------------------------------------------------------------#
-    count           = False
-    name_classes    = ["background","aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
-    # name_classes    = ["background","cat","dog"]
+    count           = True
+    # name_classes    = ["_background_", "meat","vegetable", "carbohydrate", "ovo_lacto"]
+    # name_classes    = ["_background_", "meat","green_vegs", "white_vegs", "color_vegs","carbohydrates","eggs","mushrooms","soys","fish","soft-bodied","crustaceans","fruits","algaes"]
+    name_classes    = ["_background_", "Livestock","Fish", "Shrimp", "Shellfish","Eggs","Desserts","Fruits","Nuts","Dairy","Vegetables","Starches","Mushrooms","Legumes","Dumplings","Algae"]
     #----------------------------------------------------------------------------------------------------------#
     #   video_path          用于指定视频的路径，当video_path=0时表示检测摄像头
     #                       想要检测视频，则设置如video_path = "xxx.mp4"即可，代表读取出根目录下的xxx.mp4文件。
@@ -60,8 +111,8 @@ if __name__ == "__main__":
     #   
     #   dir_origin_path和dir_save_path仅在mode='dir_predict'时有效
     #-------------------------------------------------------------------------#
-    dir_origin_path = "img/"
-    dir_save_path   = "img_out/"
+    dir_origin_path = "img_paper/"
+    dir_save_path   = "img_out/img_paper/"
     #-------------------------------------------------------------------------#
     #   simplify            使用Simplify onnx
     #   onnx_save_path      指定了onnx的保存路径
@@ -154,10 +205,16 @@ if __name__ == "__main__":
             if img_name.lower().endswith(('.bmp', '.dib', '.png', '.jpg', '.jpeg', '.pbm', '.pgm', '.ppm', '.tif', '.tiff')):
                 image_path  = os.path.join(dir_origin_path, img_name)
                 image       = Image.open(image_path)
-                r_image     = deeplab.detect_image(image)
+                print("Image Name :",img_name)
+                r_image,classes_nums    = deeplab.detect_image(image,count=True,name_classes=name_classes)
                 if not os.path.exists(dir_save_path):
                     os.makedirs(dir_save_path)
                 r_image.save(os.path.join(dir_save_path, img_name))
+
+                detailImage = process_image(r_image,image,classes_nums,name_classes,deeplab.colors)
+                detailImage.save(os.path.join(dir_save_path,"detail_"+img_name))
+
+
     elif mode == "export_onnx":
         deeplab.convert_to_onnx(simplify, onnx_save_path)
         
